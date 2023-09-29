@@ -1,7 +1,5 @@
 from pathlib import Path
 
-from datetime import timedelta
-
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 SECRET_KEY = 'hhz7l-ltdismtf@bzyz+rple7*s*w$jak%whj@(@u0eok^f9k4'
@@ -20,6 +18,7 @@ INSTALLED_APPS = [
     'rest_framework',
     'api',
     'posts',
+    'djoser',
 ]
 
 MIDDLEWARE = [
@@ -94,7 +93,10 @@ REST_FRAMEWORK = {
     'DEFAULT_PERMISSION_CLASSES': [
         'rest_framework.permissions.IsAuthenticated',
     ],
+
+    'DEFAULT_AUTHENTICATION_CLASSES': [
+        'rest_framework_simplejwt.authentication.JWTAuthentication',
+    ],
 }
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
-
