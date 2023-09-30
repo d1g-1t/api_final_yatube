@@ -15,27 +15,22 @@ from api.serializers import (
 class PostViewSet(viewsets.ModelViewSet):
     queryset = Post.objects.all().select_related('author')
     serializer_class = PostSerializer
-    permission_classes = [IsAuthorOrReadOnly]
+    permission_classes = (IsAuthorOrReadOnly,)
     pagination_class = LimitOffsetPagination
 
     def perform_create(self, serializer):
         serializer.save(author=self.request.user)
 
-    def get_permissions(self):
-        if self.action == 'retrieve':
-            return permissions.IsAuthenticatedOrReadOnly(),
-        return super().get_permissions()
-
 
 class GroupViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = Group.objects.all()
     serializer_class = GroupSerializer
-    permission_classes = [permissions.IsAuthenticatedOrReadOnly]
+    permission_classes = (permissions.IsAuthenticatedOrReadOnly,)
 
 
 class CommentViewSet(viewsets.ModelViewSet):
     serializer_class = CommentSerializer
-    permission_classes = [IsAuthorOrReadOnly]
+    permission_classes = (IsAuthorOrReadOnly,)
 
     def perform_create(self, serializer):
         serializer.save(
@@ -51,11 +46,6 @@ class CommentViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         return self.get_post().comments.select_related('author')
-
-    def get_permissions(self):
-        if self.action == 'retrieve':
-            return permissions.IsAuthenticatedOrReadOnly(),
-        return super().get_permissions()
 
 
 class FollowViewSet(CreateModelMixin, ListModelMixin, GenericViewSet):

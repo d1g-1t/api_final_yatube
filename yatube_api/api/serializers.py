@@ -9,11 +9,14 @@ class GroupSerializer(serializers.ModelSerializer):
     """Сериалайзер для модели Group."""
     class Meta:
         model = Group
-        fields = ('__all__')
+        fields = '__all__'
 
 
 class PostSerializer(serializers.ModelSerializer):
     """Сериалайзер для модели Post."""
+
+    DATE_FORMAT = "%Y-%m-%d %H:%M:%S"
+
     author = SlugRelatedField(
         default=serializers.CurrentUserDefault(),
         read_only=True,
@@ -21,12 +24,12 @@ class PostSerializer(serializers.ModelSerializer):
     )
     pub_date = serializers.DateTimeField(
         read_only=True,
-        format="%Y-%m-%d %H:%M:%S"
+        format=DATE_FORMAT
     )
 
     class Meta:
         model = Post
-        fields = ('__all__')
+        fields = '__all__'
 
 
 class CommentSerializer(serializers.ModelSerializer):
@@ -38,12 +41,15 @@ class CommentSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Comment
-        fields = ('__all__')
+        fields = '__all__'
         read_only_fields = ('post',)
 
 
 class FollowSerializer(serializers.ModelSerializer):
     """Сериалайзер для модели Follow."""
+
+    ERROR_SELF_FOLLOW = "Нельзя подписаться на себя."
+
     user = SlugRelatedField(
         default=serializers.CurrentUserDefault(),
         read_only=True,
@@ -60,17 +66,15 @@ class FollowSerializer(serializers.ModelSerializer):
         хочет подписаться сам на себя.
         """
         if self.context['request'].user == data['following']:
-            raise serializers.ValidationError(
-                "Нельзя подписаться на себя."
-            )
+            raise serializers.ValidationError(self.ERROR_SELF_FOLLOW)
         return data
 
     class Meta:
         model = Follow
-        fields = ('__all__')
-        validators = [
-            UniqueTogetherValidator(
+        fields = '__all__'
+        validators = (
+            (UniqueTogetherValidator(
                 queryset=Follow.objects.all(),
                 fields=('user', 'following'),
-            )
-        ]
+            )),
+        )
