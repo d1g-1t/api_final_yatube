@@ -48,7 +48,7 @@ class CommentSerializer(serializers.ModelSerializer):
 class FollowSerializer(serializers.ModelSerializer):
     """Сериалайзер для модели Follow."""
 
-    ERROR_SELF_FOLLOW = "Нельзя подписаться на себя."
+    ERROR_SELF_FOLLOW = 'Нельзя подписаться на себя.'
 
     user = SlugRelatedField(
         default=serializers.CurrentUserDefault(),
