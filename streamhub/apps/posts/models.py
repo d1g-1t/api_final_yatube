@@ -98,7 +98,7 @@ class Community(BaseModel):
         ]
         constraints = [
             models.CheckConstraint(
-                check=models.Q(title__length__gte=3),
+                check=models.Q(title__regex=r'.{3,}'),
                 name='community_title_min_length'
             ),
         ]
@@ -255,7 +255,7 @@ class Post(BaseModel):
         ]
         constraints = [
             models.CheckConstraint(
-                check=models.Q(title__length__gte=5),
+                check=models.Q(title__regex=r'.{5,}'),
                 name='post_title_min_length'
             ),
             models.CheckConstraint(

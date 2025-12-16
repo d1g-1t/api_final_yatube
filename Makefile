@@ -1,121 +1,123 @@
-# =============================================================================
-# StreamHub API - Makefile
-# Удобные команды для управления проектом
-# =============================================================================
-
-.PHONY: help install build up down restart logs shell bash migrate makemigrations \
+.PHONY: help install restart-all setup-env build up down restart logs shell bash migrate makemigrations \
         superuser test test-cov lint format clean db-reset cache-clear backup restore \
         prod-build prod-up prod-down monitoring
 
-# =============================================================================
-# ОСНОВНЫЕ КОМАНДЫ
-# =============================================================================
 
-help: ## Показать эту справку
+help:
 	@echo "📚 Доступные команды:"
 	@echo ""
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | \
 		awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-20s\033[0m %s\n", $$1, $$2}'
 	@echo ""
-	@echo "💡 Быстрый старт: make install"
+	@echo "💡 Первая установка: make install"
+	@echo "💡 Перезапуск проекта: make restart-all"
 
-install: clean build up migrate superuser ## 🚀 Полная установка и запуск проекта
+install: clean setup-env build up
 	@echo "✅ Проект успешно установлен!"
-	@echo "📝 Создайте .env файл с вашими настройками"
 	@echo "🌐 Откройте http://localhost:8000"
 	@echo "📖 API документация: http://localhost:8000/api/docs/"
+	@echo "👤 Создайте суперпользователя: make superuser"
 
-# =============================================================================
-# DOCKER КОМАНДЫ
-# =============================================================================
+restart-all: down setup-env up
+	@echo "✅ Проект перезапущен!"
+	@echo "🌐 Откройте http://localhost:8000"
 
-build: ## 🔨 Сборка Docker образов
+setup-env:
+	@if [ ! -f .env ]; then \
+		echo "📝 Создание .env файла из .env.example..."; \
+		cp .env.example .env; \
+		echo "✅ .env файл создан"; \
+	else \
+		echo "✅ .env файл уже существует"; \
+	fi
+
+build:
 	@echo "🔨 Сборка Docker образов..."
-	docker-compose build --no-cache
+	docker-compose build
 
-up: ## 🚀 Запуск контейнеров
+up:
 	@echo "🚀 Запуск контейнеров..."
 	docker-compose up -d
 	@echo "⏳ Ожидание готовности сервисов..."
-	@sleep 10
+	@sleep 15
 	@echo "✅ Сервисы запущены!"
 	@make ps
 
-down: ## ⏹️ Остановка контейнеров
+down:
 	@echo "⏹️  Остановка контейнеров..."
 	docker-compose down
 
-stop: down ## Алиас для down
+stop: down
 
-restart: ## 🔄 Перезапуск контейнеров
+restart:
 	@echo "🔄 Перезапуск контейнеров..."
 	docker-compose restart
 
-ps: ## 📋 Статус контейнеров
+ps:
 	@docker-compose ps
 
-logs: ## 📜 Просмотр логов (Ctrl+C для выхода)
+logs:
 	docker-compose logs -f --tail=100
 
-logs-web: ## 📜 Логи web сервиса
+logs-web:
 	docker-compose logs -f web
 
-logs-db: ## 📜 Логи базы данных
+logs-db:
 	docker-compose logs -f db
 
-logs-redis: ## 📜 Логи Redis
+logs-redis:
 	docker-compose logs -f redis
 
 # =============================================================================
 # DJANGO КОМАНДЫ
 # =============================================================================
 
-shell: ## 🐚 Django shell
+shell:
 	docker-compose exec web python manage.py shell
 
-bash: ## 💻 Bash в контейнере web
+bash:
 	docker-compose exec web bash
 
-migrate: ## 📦 Применение миграций
+migrate:
 	@echo "📦 Применение миграций..."
 	docker-compose exec web python manage.py migrate
 
-makemigrations: ## 📝 Создание миграций
+makemigrations:
 	@echo "📝 Создание миграций..."
 	docker-compose exec web python manage.py makemigrations
 
-superuser: ## 👤 Создание суперпользователя
+superuser:
 	@echo "👤 Создание суперпользователя..."
 	docker-compose exec web python manage.py createsuperuser
 
-collectstatic: ## 📁 Сбор статических файлов
+collectstatic:
 	docker-compose exec web python manage.py collectstatic --noinput
 
-loaddata: ## 📥 Загрузка тестовых данных
+loaddata:
 	docker-compose exec web python manage.py loaddata fixtures/*.json
 
 # =============================================================================
 # БАЗА ДАННЫХ
 # =============================================================================
 
-db-shell: ## 🗄️  PostgreSQL shell
+db-shell:
 	docker-compose exec db psql -U streamhub_user -d streamhub_db
 
-db-reset: ## ⚠️  ОПАСНО! Полный сброс базы данных
+db-reset:
 	@echo "⚠️  ВНИМАНИЕ! Это удалит все данные!"
 	@echo "Нажмите Ctrl+C для отмены, Enter для продолжения"
 	@read confirm
 	docker-compose exec web python manage.py flush --noinput
 	@make migrate
 
-db-backup: ## 💾 Резервное копирование БД
+db-backup:
 	@echo "💾 Создание резервной копии..."
 	@mkdir -p backups
 	docker-compose exec -T db pg_dump -U streamhub_user streamhub_db > \
 		backups/backup_$(shell date +%Y%m%d_%H%M%S).sql
 	@echo "✅ Backup создан в папке backups/"
 
-db-restore: ## 📥 Восстановление БД из backup (FILE=backup.sql)
+db-restore:
 	@echo "📥 Восстановление из $(FILE)..."
 	docker-compose exec -T db psql -U streamhub_user streamhub_db < $(FILE)
 	@echo "✅ База данных восстановлена"
@@ -124,40 +126,40 @@ db-restore: ## 📥 Восстановление БД из backup (FILE=backup.s
 # ТЕСТИРОВАНИЕ
 # =============================================================================
 
-test: ## 🧪 Запуск всех тестов
+test:
 	@echo "🧪 Запуск тестов..."
 	docker-compose exec web pytest -v
 
-test-cov: ## 📊 Тесты с покрытием
+test-cov:
 	@echo "📊 Запуск тестов с покрытием..."
 	docker-compose exec web pytest --cov=src --cov-report=html --cov-report=term
 
-test-fast: ## ⚡ Быстрые тесты (без интеграционных)
+test-fast:
 	docker-compose exec web pytest -v -m "not slow"
 
-test-watch: ## 👀 Тесты в режиме наблюдения
+test-watch:
 	docker-compose exec web ptw -- -v
 
 # =============================================================================
 # КАЧЕСТВО КОДА
 # =============================================================================
 
-lint: ## 🔍 Проверка кода (ruff, black, isort)
+lint:
 	@echo "🔍 Проверка кода..."
 	docker-compose exec web ruff check src/
 	docker-compose exec web black --check src/
 	docker-compose exec web isort --check-only src/
 
-format: ## ✨ Форматирование кода
+format:
 	@echo "✨ Форматирование кода..."
 	docker-compose exec web black src/
 	docker-compose exec web isort src/
 	docker-compose exec web ruff check --fix src/
 
-type-check: ## 🔬 Проверка типов (mypy)
+type-check:
 	docker-compose exec web mypy src/
 
-security: ## 🔒 Проверка безопасности
+security:
 	docker-compose exec web bandit -r src/
 	docker-compose exec web safety check
 
@@ -165,37 +167,37 @@ security: ## 🔒 Проверка безопасности
 # КЭШИРОВАНИЕ
 # =============================================================================
 
-cache-clear: ## 🗑️  Очистка кэша Redis
+cache-clear:
 	@echo "🗑️  Очистка кэша..."
 	docker-compose exec redis redis-cli FLUSHALL
 	@echo "✅ Кэш очищен"
 
-cache-stats: ## 📊 Статистика кэша
+cache-stats:
 	docker-compose exec redis redis-cli INFO stats
 
 # =============================================================================
 # PRODUCTION
 # =============================================================================
 
-prod-build: ## 🏭 Сборка для продакшена
+prod-build:
 	@echo "🏭 Сборка production образа..."
 	docker-compose --profile production build
 
-prod-up: ## 🚀 Запуск в production режиме
+prod-up:
 	@echo "🚀 Запуск production..."
 	docker-compose --profile production up -d
 
-prod-down: ## ⏹️  Остановка production
+prod-down:
 	docker-compose --profile production down
 
-prod-logs: ## 📜 Логи production
+prod-logs:
 	docker-compose --profile production logs -f
 
 # =============================================================================
 # УТИЛИТЫ
 # =============================================================================
 
-clean: ## 🧹 Очистка временных файлов и контейнеров
+clean:
 	@echo "🧹 Очистка..."
 	docker-compose down -v --remove-orphans
 	find . -type d -name __pycache__ -exec rm -rf {} + 2>/dev/null || true
@@ -205,29 +207,29 @@ clean: ## 🧹 Очистка временных файлов и контейн�
 	rm -rf .pytest_cache htmlcov .coverage 2>/dev/null || true
 	@echo "✅ Очистка завершена"
 
-clean-all: clean ## 🧹 Полная очистка (включая volumes)
+clean-all: clean
 	docker system prune -af --volumes
 	@echo "✅ Полная очистка завершена"
 
-monitoring: ## 📊 Статистика использования ресурсов
+monitoring:
 	docker stats
 
-health: ## 🏥 Проверка health контейнеров
+health:
 	@echo "🏥 Проверка здоровья сервисов..."
 	@docker-compose ps | grep -E "healthy|running"
 
-update-deps: ## 📦 Обновление зависимостей
+update-deps:
 	docker-compose exec web pip install --upgrade pip
 	docker-compose exec web pip list --outdated
 
-requirements: ## 📋 Генерация requirements.txt
+requirements:
 	docker-compose exec web pip freeze > requirements.txt
 
 # =============================================================================
 # ИНФОРМАЦИЯ
 # =============================================================================
 
-info: ## ℹ️  Информация о проекте
+info:
 	@echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 	@echo "🚀 StreamHub API"
 	@echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
